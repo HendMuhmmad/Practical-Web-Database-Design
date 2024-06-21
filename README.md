@@ -29,5 +29,6 @@ This repository is the result of a collaborative effort during a 6-month mentors
 
 ## Index:
 - [Tables Creation Scripts](TablesDDLScripts.sql)
+- [Random Data Generation Procedures up to 2 million record per table to test performance](dataGenerationProcedures)
 - [Some Common Queries, e.g., top-selling products And Daily or Monthly Reports](sampleQueries)
 - [Some Optimization Techniques](QueriesOptimizationTechniques)
