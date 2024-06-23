@@ -27,8 +27,20 @@ This repository is the result of a collaborative effort during a 6-month mentors
 </p>
 <h3 align="center">E-Commerce ERD Denormalized Diagram</h3>
 
+
+## Summary of Some Queries and their optimizations
+
+| Sample Query | Execution Time Before Optimization | Optimization Technique | Rewritten Query | Execution Time After Optimization |
+|--------------|------------------------------------|------------------------|-----------------|-----------------------------------|
+| select CATEGORY_ID , count(PRODUCT_ID) as TOTAL_PRODUCTS_NUMBER from product_category pc group by CATEGORY_ID | 70.2 ms | Create a composite index on category id and product id for product_category table | - | 0.3 ms |
+| select CUSTOMER_ID,CONCAT(c.FIRST_NAME,' ', c.LAST_NAME) as CUSTOMER_NAME, sum(TOTAL_COST) as TOTAL_SPENDING from orders o inner join customer c on c.ID = o.CUSTOMER_ID group by CUSTOMER_ID  order by TOTAL_SPENDING desc | 147499 ms | Query Rewriting and adding a composite index on cutomer id and total price for orders tables | select CUSTOMER_ID,CONCAT(c.FIRST_NAME,' ', c.LAST_NAME) as CUSTOMER_NAME, TOTAL_SPENDING from (select CUSTOMER_ID, sum(TOTAL_COST) as TOTAL_SPENDING from orders o group by CUSTOMER_ID order by TOTAL_SPENDING desc) o inner join customer c on c.ID = o.CUSTOMER_ID  | 2120 ms |
+| SELECT o.ID , o.order_date, o.TOTAL_COST , c.id, c.first_name, c.last_name, c.email FROM customer c JOIN orders o ON o.customer_id = c.ID  ORDER BY o.order_date DESC LIMIT 1000; | 1705 ms | Create an index on order date | - | 0.378 ms |
+| select p.NAME  from product p where p.QUANTITY < 60 | 0.0567 ms | Create a composite index on name and quantity | - | 0.0262 ms |
+| select c.ID ,c.NAME , sum(p.PRICE) from order_detail od inner join product p on p.ID = od.PRODUCT_ID  inner join product_category pc  on pc.PRODUCT_ID = p.ID  inner join category c on c.ID = pc.CATEGORY_ID  group by c.id | 8357 ms | View | CREATE VIEW category_product_summary AS SELECT  c.ID AS category_id, c.NAME AS category_name, p.ID AS product_id, p.PRICE AS product_price FROM  order_detail od INNER JOIN  product p ON p.ID = od.PRODUCT_ID INNER JOIN  product_category pc ON pc.PRODUCT_ID = p.ID INNER JOIN  category c ON c.ID = pc.CATEGORY_ID; | 6728 ms |
+
+
 ## Index:
 - [Tables Creation Scripts](TablesDDLScripts.sql)
 - [Random Data Generation Procedures up to 2 million record per table to test performance](dataGenerationProcedures)
 - [Some Common Queries, e.g., top-selling products And Daily or Monthly Reports](sampleQueries)
-- [Some Optimization Techniques](QueriesOptimizationTechniques)
+- [More Details on Optimization Techniques](QueriesOptimizationTechniques)
