@@ -159,48 +159,30 @@ group by c.id
 - Optimization Technique
 
 ```mysql
-CREATE VIEW category_product_summary AS
-SELECT 
-    c.ID AS category_id,
-    c.NAME AS category_name,
-    p.ID AS product_id,
-    p.PRICE AS product_price
-FROM 
-    order_detail od
-INNER JOIN 
-    product p ON p.ID = od.PRODUCT_ID
-INNER JOIN 
-    product_category pc ON pc.PRODUCT_ID = p.ID
-INNER JOIN 
-    category c ON c.ID = pc.CATEGORY_ID;
-
 explain analyze SELECT 
-    category_id AS ID,
-    category_name AS NAME,
-    SUM(product_price) AS total_price
+    sh.PRODUCT_DEFAULT_CATEGORY_ID AS ID,
+    sh.CATEGORY_NAME AS NAME,
+    SUM(sh.PRODUCT_PRICE) AS total_price
 FROM 
-    category_product_summary
+    sales_history sh 
 GROUP BY 
-    category_id, category_name;
+    sh.PRODUCT_DEFAULT_CATEGORY_ID,sh.CATEGORY_NAME;
+
+   
+ALTER TABLE sales_history  ADD INDEX INDEX_CATEGORY (PRODUCT_DEFAULT_CATEGORY_ID,CATEGORY_NAME,PRODUCT_PRICE);
+
 ```
 
 - Output
 
 ```
--> Table scan on <temporary>  (actual time=6728..6728 rows=100 loops=1)
-    -> Aggregate using temporary table  (actual time=6728..6728 rows=100 loops=1)
-        -> Nested loop inner join  (cost=672757 rows=5.67e+6) (actual time=0.0708..2044 rows=6e+6 loops=1)
-            -> Nested loop inner join  (cost=79400 rows=98799) (actual time=0.0557..339 rows=100000 loops=1)
-                -> Nested loop inner join  (cost=44820 rows=98799) (actual time=0.0498..234 rows=100000 loops=1)
-                    -> Table scan on p  (cost=10241 rows=98799) (actual time=0.0364..37.3 rows=100000 loops=1)
-                    -> Covering index lookup on pc using product_category_ibfk_2 (PRODUCT_ID=p.ID)  (cost=0.25 rows=1) (actual time=0.0014..0.00185 rows=1 loops=100000)
-                -> Single-row index lookup on c using PRIMARY (ID=pc.CATEGORY_ID)  (cost=0.25 rows=1) (actual time=928e-6..945e-6 rows=1 loops=100000)
-            -> Covering index lookup on od using PRODUCT_ID (PRODUCT_ID=p.ID)  (cost=0.271 rows=57.3) (actual time=0.00833..0.0148 rows=60 loops=100000)
+-> Group aggregate: sum(sh.PRODUCT_PRICE)  (cost=84411 rows=101) (actual time=5280..5410 rows=100 loops=1)
+    -> Covering index scan on sh using INDEX_CATEGORY  (cost=44085 rows=6000000) (actual time=0.0521..5280 rows=6000000 loops=1)
 ```
 
 <br>
 
-# Summary 
+## Summary 
 
 | Sample Query | Execution Time Before Optimization | Optimization Technique | Rewritten Query | Execution Time After Optimization |
 |--------------|------------------------------------|------------------------|-----------------|-----------------------------------|
@@ -208,6 +190,6 @@ GROUP BY
 | select CUSTOMER_ID,CONCAT(c.FIRST_NAME,' ', c.LAST_NAME) as CUSTOMER_NAME, sum(TOTAL_COST) as TOTAL_SPENDING from orders o inner join customer c on c.ID = o.CUSTOMER_ID group by CUSTOMER_ID  order by TOTAL_SPENDING desc | 147499 ms | Query Rewriting and adding a composite index on cutomer id and total price for orders tables | select CUSTOMER_ID,CONCAT(c.FIRST_NAME,' ', c.LAST_NAME) as CUSTOMER_NAME, TOTAL_SPENDING from (select CUSTOMER_ID, sum(TOTAL_COST) as TOTAL_SPENDING from orders o group by CUSTOMER_ID order by TOTAL_SPENDING desc) o inner join customer c on c.ID = o.CUSTOMER_ID  | 2120 ms |
 | SELECT o.ID , o.order_date, o.TOTAL_COST , c.id, c.first_name, c.last_name, c.email FROM customer c JOIN orders o ON o.customer_id = c.ID  ORDER BY o.order_date DESC LIMIT 1000; | 1705 ms | Create an index on order date | - | 0.378 ms |
 | select p.NAME  from product p where p.QUANTITY < 60 | 0.0567 ms | Create a composite index on name and quantity | - | 0.0262 ms |
-| select c.ID ,c.NAME , sum(p.PRICE) from order_detail od inner join product p on p.ID = od.PRODUCT_ID  inner join product_category pc  on pc.PRODUCT_ID = p.ID  inner join category c on c.ID = pc.CATEGORY_ID  group by c.id | 8357 ms |  View | CREATE VIEW category_product_summary AS SELECT  c.ID AS category_id, c.NAME AS category_name, p.ID AS product_id, p.PRICE AS product_price FROM  order_detail od INNER JOIN  product p ON p.ID = od.PRODUCT_ID INNER JOIN  product_category pc ON pc.PRODUCT_ID = p.ID INNER JOIN  category c ON c.ID = pc.CATEGORY_ID; | 6728 ms |
+| select c.ID ,c.NAME , sum(p.PRICE) from order_detail od inner join product p on p.ID = od.PRODUCT_ID  inner join product_category pc  on pc.PRODUCT_ID = p.ID  inner join category c on c.ID = pc.CATEGORY_ID  group by c.id | 8357 ms | Using the denormalized table SALES_HISTORY with covering index | - | 5280 ms |
 
     
